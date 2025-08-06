@@ -1,0 +1,71 @@
+hydra:
+  run:
+    dir: ${output_dir}
+  output_subdir: ${output_dir}/code/hydra
+  searchpath:
+    - pkg://navsim.planning.script.config.common
+  job:
+    chdir: False
+
+defaults:
+  - default_common
+  - default_evaluation
+  - default_train_val_test_log_split
+  - agent: diffusiondrive_agent
+  - _self_
+
+split: trainval
+cache_path: ${oc.env:NAVSIM_EXP_ROOT}/training_cache
+use_cache_without_dataset: false
+force_cache_computation: true
+seed: 0
+
+# H200 Optimized DataLoader Settings
+dataloader:
+  params:
+    batch_size: 128  # Increased from 64 for H200's larger memory
+    num_workers: 8   # Increased for better CPU-GPU pipeline
+    pin_memory: true
+    prefetch_factor: 4  # Increased for better prefetching
+    persistent_workers: true  # Keep workers alive between epochs
+    drop_last: true  # Drop incomplete batches for consistent training
+
+# H200 Optimized Trainer Settings
+trainer:
+  params:
+    max_epochs: 100
+    check_val_every_n_epoch: 1
+    val_check_interval: 1.0
+
+    limit_train_batches: 1.0
+    limit_val_batches: 1.0
+
+    # H200 Optimized GPU Settings
+    accelerator: gpu
+    strategy: ddp_find_unused_parameters_false  # Faster than regular DDP
+    precision: bf16-mixed  # Use bfloat16 for H200 (better than fp16)
+    num_nodes: 1
+    devices: auto  # Automatically detect all available GPUs
+
+    # Memory and Performance Optimizations
+    num_sanity_val_steps: 0
+    fast_dev_run: false
+    accumulate_grad_batches: 1
+    gradient_clip_val: 0.0
+    gradient_clip_algorithm: norm
+    default_root_dir: ${output_dir}
+    
+    # H200 Specific Optimizations
+    enable_progress_bar: true
+    enable_model_summary: false  # Disable to save memory
+    enable_checkpointing: true
+    log_every_n_steps: 50  # Reduce logging frequency for speed
+    
+    # Memory Management
+    deterministic: false  # Disable for speed
+    benchmark: true  # Enable cuDNN benchmark for H200
+    
+    # Advanced H200 Optimizations
+    sync_batchnorm: false  # Disable for single node
+    replace_sampler_ddp: true
+    use_distributed_sampler: true 

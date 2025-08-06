@@ -1,0 +1,31 @@
+_target_: navsim.agents.diffusiondrive.transfuser_agent.TransfuserAgent
+_convert_: 'all'
+
+config:
+  _target_: navsim.agents.diffusiondrive.transfuser_config.TransfuserConfig
+  _convert_: 'all'
+
+  trajectory_sampling:
+    _target_: nuplan.planning.simulation.trajectory.trajectory_sampling.TrajectorySampling
+    _convert_: 'all'
+    time_horizon: 4
+    interval_length: 0.5
+
+  latent: False
+
+  # H200 Optimized Model Settings
+  # Increase model capacity to utilize H200's larger memory
+  tf_d_model: 512  # Increased from 256
+  tf_d_ffn: 2048   # Increased from 1024
+  tf_num_layers: 4 # Increased from 3
+  tf_num_head: 16  # Increased from 8
+  
+  # H200 Optimized Training Settings
+  weight_decay: 5e-5  # Reduced for better convergence
+  lr_steps: [50, 80]  # Adjusted learning rate schedule
+  optimizer_type: "AdamW"
+  scheduler_type: "MultiStepLR"
+  cfg_lr_mult: 0.3  # Reduced for better stability
+
+checkpoint_path: null
+lr: 1e-3  # Increased learning rate for H200 

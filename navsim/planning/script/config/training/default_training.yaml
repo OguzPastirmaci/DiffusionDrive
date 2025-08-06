@@ -1,0 +1,69 @@
+hydra:
+  run:
+    dir: ${output_dir}
+  output_subdir: ${output_dir}/code/hydra           # Store hydra's config breakdown here for debugging
+  searchpath:                                       # Only <exp_dir> in these paths are discoverable
+    - pkg://navsim.planning.script.config.common
+  job:
+    chdir: False
+
+defaults:
+  - default_common
+  - default_evaluation
+  - default_train_val_test_log_split
+  - agent: ego_status_mlp_agent
+  - _self_
+
+split: trainval
+cache_path: ${oc.env:NAVSIM_EXP_ROOT}/training_cache
+use_cache_without_dataset: false # load the training samples from the cache. scene-filter will be ignored
+force_cache_computation: true
+seed: 0
+
+dataloader:
+  params:
+    batch_size: 256  # increased for 8 H200 GPUs (32 per GPU)
+    num_workers: 16  # increased for 8 H200 GPUs (2 workers per GPU)
+    pin_memory: true  # pin memory for faster GPU transfer
+    prefetch_factor: 4  # increased for better prefetching
+    persistent_workers: true  # keep workers alive between epochs
+    drop_last: true  # drop incomplete batches for consistent training
+
+trainer:
+  params:
+    max_epochs: 100  # maximum number of training epochs
+    check_val_every_n_epoch: 1  # run validation set every n training epochs
+    val_check_interval: 1.0  # [%] run validation set every X% of training set
+
+    limit_train_batches: 1.0  # how much of training dataset to check (float = fraction, int = num_batches)
+    limit_val_batches: 1.0  # how much of validation dataset to check (float = fraction, int = num_batches)
+
+    accelerator: gpu  # distribution method
+    strategy: ddp  # use regular DDP for 8 GPU setup
+    precision: bf16-mixed  # bfloat16 for H200 (better than fp16)
+    num_nodes: 1  # Number of nodes used for training
+    devices: 8  # Use all 8 H200 GPUs
+
+    num_sanity_val_steps: 0  # number of validation steps to run before training begins
+    fast_dev_run: false  # runs 1 batch of train/val/test for sanity
+    
+    # H200 GPU optimizations
+    enable_progress_bar: true
+    enable_model_summary: false  # disable to save memory
+    enable_checkpointing: true
+    log_every_n_steps: 50  # reduce logging frequency for speed
+    
+    # Memory and performance optimizations
+    deterministic: false  # disable for speed
+    benchmark: true  # enable cuDNN benchmark for H200
+    
+    # Advanced H200 optimizations
+    sync_batchnorm: true  # enable for multi-GPU training
+    replace_sampler_ddp: true
+    use_distributed_sampler: true
+
+    accumulate_grad_batches: 1  # accumulates gradients every n batches
+    # track_grad_norm: -1  # logs the p-norm for inspection
+    gradient_clip_val: 0.0  # value to clip gradients
+    gradient_clip_algorithm: norm  # [value, norm] method to clip gradients
+    default_root_dir: ${output_dir}
